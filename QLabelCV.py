@@ -11,7 +11,7 @@ class QLabelCV(QLabel):
         super(QLabelCV, self).__init__()
         self.resize(640, 360)
 
-        self.pen = None
+        self._pen = None
         self._frame = []
         self._camera = None
         self._is_camera_ok = True
@@ -22,6 +22,13 @@ class QLabelCV(QLabel):
         self._roi_top_left_y = 0.0
         self._roi_bottom_right_x = 0.0
         self._roi_bottom_right_y = 0.0
+
+        self._adjust_area = None
+        self._show_hide_adjust_area_btn = None
+        self._brightness_spin = None
+        self._contrast_spin = None
+        self._sharpen_spin = None
+        self._blur_spin = None
 
         self._main()
 
@@ -46,7 +53,7 @@ class QLabelCV(QLabel):
         self._send_frame_thread.frame_signal.connect(self._get_frame_from_thread)
 
     def _init_pen_style(self):
-        self.pen = QPen()
+        self._pen = QPen()
         self.set_pen(2, Qt.green)
 
     def _init_adjust_area(self):
@@ -60,8 +67,8 @@ class QLabelCV(QLabel):
         self._adjust_area.move(0, 0)
         self._adjust_area.hide()
 
-        self._brightness_spin = QSpinBox(self._adjust_area)
         self._contrast_spin = QDoubleSpinBox(self._adjust_area)
+        self._brightness_spin = QSpinBox(self._adjust_area)
         self._sharpen_spin = QSpinBox(self._adjust_area)
         self._blur_spin = QSpinBox(self._adjust_area)
 
@@ -96,6 +103,30 @@ class QLabelCV(QLabel):
             self._adjust_area.hide()
             self._show_hide_adjust_area_btn.move(self.width()/2, 5)
             self._show_hide_adjust_area_btn.setText('⬇')
+
+    @property
+    def camera(self):
+        return self._camera
+
+    @property
+    def image_format(self):
+        return self._image_format
+
+    @property
+    def sharpen_value(self):
+        return self._sharpen_spin.value()
+
+    @property
+    def contrast_value(self):
+        return self._contrast_spin.value()
+
+    @property
+    def brightness_value(self):
+        return self._brightness_spin.value()
+
+    @property
+    def blur_value(self):
+        return self._blur_spin.value()
 
     @property
     def roi_top_left_x(self):
@@ -164,7 +195,7 @@ class QLabelCV(QLabel):
         """
         save frame as a local picture file
         :param path: file path
-        :param with_roi_rect: if draw roi on the saved picture
+        :param with_roi_rect: if to draw roi on the saved picture
         :return: None
         """
         if not self._is_camera_ok:
@@ -177,7 +208,7 @@ class QLabelCV(QLabel):
                 cv.imwrite(path, self._frame)
             else:
                 cv.rectangle(self._frame, (self._roi_top_left_x, self._roi_top_left_y), (self._roi_bottom_right_x, self._roi_bottom_right_y),
-                             (self.pen.color().red(), self.pen.color().green(), self.pen.color().blue()), self.pen.width())
+                             (self._pen.color().red(), self._pen.color().green(), self._pen.color().blue()), self._pen.width())
                 cv.imwrite(path, self._frame)
 
     def get_frame(self):
@@ -197,8 +228,8 @@ class QLabelCV(QLabel):
             self._is_camera_ok = False
 
     def set_pen(self, width: int, color: QColor):
-        self.pen.setWidth(width)
-        self.pen.setColor(color)
+        self._pen.setWidth(width)
+        self._pen.setColor(color)
 
     def _get_frame_from_thread(self, frame: list, width: int, height: int):
         self._frame = np.array(frame)
@@ -238,7 +269,7 @@ class QLabelCV(QLabel):
         super(QLabelCV, self).paintEvent(event)
 
         _painter = QPainter(self)
-        _painter.setPen(self.pen)
+        _painter.setPen(self._pen)
 
         if not self._is_camera_ok:
             _painter.drawText(10, 20, 'Device Not Available')
@@ -272,8 +303,8 @@ class SendFrameThread(QThread):
         self._flag = False
 
     def _send_video_frame(self):
-        _ret, _frame = self._parent._camera.read()
-        if self._parent._image_format == QImage.Format_RGB888:
+        _ret, _frame = self._parent.camera.read()
+        if self._parent.image_format == QImage.Format_RGB888:
             _frame = cv.cvtColor(_frame, cv.COLOR_BGR2RGB)
 
         if not _ret:
@@ -291,7 +322,7 @@ class SendFrameThread(QThread):
         return _optimized_frame
 
     def _sharpen(self, frame):
-        _sharpen_value = self._parent._sharpen_spin.value()
+        _sharpen_value = self._parent.sharpen_value
         _sharpen_value += 4
 
         if _sharpen_value > 4:
@@ -301,7 +332,7 @@ class SendFrameThread(QThread):
         return frame
 
     def _blur(self, frame):
-        _blur_value = self._parent._blur_spin.value()
+        _blur_value = self._parent.blur_value
 
         if _blur_value:
             frame = cv.GaussianBlur(frame, (_blur_value, _blur_value), 0)
@@ -309,9 +340,9 @@ class SendFrameThread(QThread):
         return frame
 
     def _set_contrast_brightness(self, frame):
-        _contrast_value = self._parent._contrast_spin.value()
+        _contrast_value = self._parent.contrast_value
         _blank = np.zeros(frame.shape, frame.dtype)
-        frame = cv.addWeighted(frame, _contrast_value, _blank, 1-_contrast_value, self._parent._brightness_spin.value())
+        frame = cv.addWeighted(frame, _contrast_value, _blank, 1-_contrast_value, self._parent.brightness_value)
         return frame
 
 

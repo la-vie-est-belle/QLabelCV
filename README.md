@@ -1,1 +1,2 @@
-PyQt QLabel specially for OpenCV.
+## PyQt QLabel specially for OpenCV.
+
