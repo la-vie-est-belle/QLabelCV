@@ -18,10 +18,10 @@ class QLabelCV(QLabel):
         self._image_format = None
         self._send_frame_thread = None
 
-        self._roi_top_left_x = 0.0
-        self._roi_top_left_y = 0.0
-        self._roi_bottom_right_x = 0.0
-        self._roi_bottom_right_y = 0.0
+        self._roi_top_left_x = 0
+        self._roi_top_left_y = 0
+        self._roi_bottom_right_x = 0
+        self._roi_bottom_right_y = 0
 
         self._adjust_area = None
         self._show_hide_adjust_area_btn = None
@@ -58,8 +58,8 @@ class QLabelCV(QLabel):
 
     def _init_adjust_area(self):
         self._show_hide_adjust_area_btn = QPushButton('⬇', self)
-        self._show_hide_adjust_area_btn.setStyleSheet('QPushButton{border:none}')
         self._show_hide_adjust_area_btn.move(self.width()/2, 5)
+        self._show_hide_adjust_area_btn.setStyleSheet('QPushButton{border:none}')
         self._show_hide_adjust_area_btn.clicked.connect(self._show_hide_adjust_area)
 
         self._adjust_area = QWidget(self)
@@ -81,6 +81,7 @@ class QLabelCV(QLabel):
         self._blur_spin.setValue(1)
 
         _h_layout = QHBoxLayout()
+        _h_layout.addStretch(1)
         _h_layout.addWidget(QLabel('Contrast'))
         _h_layout.addWidget(self._contrast_spin)
         _h_layout.addStretch(1)
@@ -92,17 +93,18 @@ class QLabelCV(QLabel):
         _h_layout.addStretch(1)
         _h_layout.addWidget(QLabel('Blur'))
         _h_layout.addWidget(self._blur_spin)
+        _h_layout.addStretch(1)
         self._adjust_area.setLayout(_h_layout)
 
     def _show_hide_adjust_area(self):
         if self._show_hide_adjust_area_btn.text() == '⬇':
             self._adjust_area.show()
-            self._show_hide_adjust_area_btn.move(self.width()/2, 40)
             self._show_hide_adjust_area_btn.setText('⬆')
+            self._show_hide_adjust_area_btn.move(self.width()/2, 40)
         else:
             self._adjust_area.hide()
-            self._show_hide_adjust_area_btn.move(self.width()/2, 5)
             self._show_hide_adjust_area_btn.setText('⬇')
+            self._show_hide_adjust_area_btn.move(self.width()/2, 5)
 
     @property
     def camera(self):
@@ -130,11 +132,11 @@ class QLabelCV(QLabel):
 
     @property
     def roi_top_left_x(self):
-        return self.roi_top_left_x
+        return self._roi_top_left_x
 
     @property
     def roi_top_left_y(self):
-        return self.roi_top_left_y
+        return self._roi_top_left_y
 
     @property
     def roi_bottom_right_x(self):
@@ -207,8 +209,11 @@ class QLabelCV(QLabel):
             if not with_roi_rect:
                 cv.imwrite(path, self._frame)
             else:
-                cv.rectangle(self._frame, (self._roi_top_left_x, self._roi_top_left_y), (self._roi_bottom_right_x, self._roi_bottom_right_y),
-                             (self._pen.color().red(), self._pen.color().green(), self._pen.color().blue()), self._pen.width())
+                cv.rectangle(self._frame,
+                             (self._roi_top_left_x, self._roi_top_left_y),
+                             (self._roi_bottom_right_x, self._roi_bottom_right_y),
+                             (self._pen.color().red(), self._pen.color().green(), self._pen.color().blue()),
+                             self._pen.width())
                 cv.imwrite(path, self._frame)
 
     def get_frame(self):
@@ -222,6 +227,7 @@ class QLabelCV(QLabel):
         """check if the camera is available"""
         if self._camera.isOpened():
             self._is_camera_ok = True
+            self._send_frame_thread.stop()
             self._send_frame_thread.start()
         else:
             self._send_frame_thread.stop()
@@ -238,16 +244,12 @@ class QLabelCV(QLabel):
         _pixmap = QPixmap.fromImage(_image)
         self.setPixmap(_pixmap)
 
-    def keyPressEvent(self, event):
-        # Press P, save the frame without roi rect.
-        # Press Ctrl+P (Command+P on Mac), save the frame with roi rect.
-        if event.key() == Qt.Key_P:
-            if event.modifiers() == Qt.ControlModifier:
-                self.save_frame('frame.jpg', True)
-            else:
-                self.save_frame('frame.jpg')
-
-            print('frame saved')
+    def resizeEvent(self, event):
+        self._adjust_area.resize(self.width(), 50)
+        if self._show_hide_adjust_area_btn.text() == '⬇':
+            self._show_hide_adjust_area_btn.move(self.width()/2, 5)
+        else:
+            self._show_hide_adjust_area_btn.move(self.width()/2, 40)
 
     def mousePressEvent(self, event):
         if not self._is_camera_ok:
@@ -293,6 +295,7 @@ class SendFrameThread(QThread):
         self._flag = True
 
     def run(self):
+        self._flag = True
         while self._flag:
             self._send_video_frame()
 
