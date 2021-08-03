@@ -2,7 +2,7 @@
 ## A QLabel specially designed for OpenCV.
 <br/>
 
-###How to use:
+### How to use:
 ```python
 from PyQt5.QtWidgets import QApplication
 from QLabelCV import QLabelCV
@@ -55,6 +55,9 @@ Save the frame with ROI rect:
 Besides, you can click the little arrow on the screen to show the adjust area:
 ![screentshot](./pics/3.png)
 ![screentshot](./pics/4.png)
+<br/>
+You can sharpen or blur the frame, and adjust the contrast or brightness.
+<br/>
 
 ### Here is a demo using QLabelCV:
 ```python
